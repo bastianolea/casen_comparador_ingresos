@@ -19,26 +19,9 @@ color_destacado = "#BBBBBB"
 # source("variables.R")
 
 #cargar datos ----
-# casen_comunas <- readr::read_csv2("casen_pobreza_comunas.csv", 
-#                                   col_types = c(rep("c", 3), rep("n", 44))
-# )
-# casen_comunas <- arrow::read_feather("app/casen_ingresos.feather")
+# setwd("app/")
 casen_comunas <- arrow::read_feather("casen_ingresos.feather")
 variables_numericas <- casen_comunas |> select(where(is.numeric)) |> names()
-
-
-# funciones ----
-#se usa para transformar el nombre de la variable (desde los inputs) a la etiqueta
-nombre_variable <- function(texto) {
-  # texto = input$selector_y
-  unlist(variables)[unlist(variables) == texto] |> names() |> str_remove(".*\\.")
-}
-
-estilo_cuadros <- glue("margin: -6px; margin-top: 10px; margin-bottom: 10px;
-                           padding: 20px;
-                           padding-top: 0;
-                           border-radius: 8px;
-           border: 3px solid {color_detalle} ;")
 
 #—----
 # ui ----
@@ -241,6 +224,9 @@ ui <- fluidPage(
            p("Los datos de este visualizador provienen de la",
              tags$a("Encuesta de caracterización socioeconómica nacional (Casen) 2022.", target = "_blank", href = "https://observatorio.ministeriodesarrollosocial.gob.cl/encuesta-casen-2022"))
            
+    ),
+    column(12,
+           hr()
     )
   ),
   
@@ -248,124 +234,131 @@ ui <- fluidPage(
   # selectores ----
   
   fluidRow(
-    column(12,
-           hr(),
-           h3("Seleccionar variables")
-    )
-  ),
-  fluidRow(
-    column(5, 
-           p("Selecciona una comuna para ver su distribución de ingresos, o elige varias comunas para comparar los ingresos de sus poblaciones."),
-           column(12, align = "center",
-                  div(style = "max-width: 350px; min-width: 290px;",
-                      radioGroupButtons(
-                        inputId = "variable",
-                        label = NULL,
-                        width = "100%",  justified = T,
-                        # choices = c("Ingresos individuales", "Ingresos de los hogares")
-                        direction = "vertical",
-                        choices = c("Ingresos individuales" = "ytotcor",
-                                    "Ingresos de los hogares" = "ytotcorh",
-                                    "Ingresos por persona de hogares" = "ypc",
-                                    "Jubilación o pensión por vejez" = "y2803")
-                      )
-                  )
-           )
-    ),
-    column(7, style = "padding: 0;",
-           column(12,
-                  p("Elija una o más regiones para posteriormente elegir una o varias comunas que serán incluidas en el gráfico."),
-                  pickerInput("regiones",
-                              label = h4("Regiones"),
-                              width = "100%",
-                              multiple = TRUE,
-                              selected = "Región Metropolitana de Santiago", 
-                              # choices = NULL,
-                              choices = c("Todas las regiones", as.character(unique(casen_comunas$region))),
-                              options = list(width = FALSE)
-                  )
+    column(4,
+           fluidRow(
+             column(12,
+                    
+                    h3("Seleccionar variables")
+             )
            ),
-           column(12,  
-                  div(   
-                    pickerInput("comunas",
-                                label = h4("Comunas"),
+           fluidRow(
+             column(12,
+                    p("Seleccione la variable de ingresos que desee graficar:"),
+                    column(12, align = "center",
+                           div(style = "max-width: 350px;",
+                               radioGroupButtons(
+                                 inputId = "variable",
+                                 label = NULL,
+                                 width = "100%",  justified = T,
+                                 # choices = c("Ingresos individuales", "Ingresos de los hogares")
+                                 direction = "vertical",
+                                 choices = c("Ingresos individuales" = "ytotcor",
+                                             "Ingresos de los hogares" = "ytotcorh",
+                                             "Ingreso per cápita de hogares" = "ypc",
+                                             "Jubilación o pensión por vejez" = "y2803")
+                               )
+                           )
+                    )
+             ),
+             # column(12, style = "padding: 0;",
+             column(12, #style = "margin-top: 18px;",
+                    hr(),
+                    p("Elija una o más regiones para luego elegir una o varias comunas que serán incluidas en el gráfico."),
+                    pickerInput("regiones",
+                                label = h4("Regiones"),
                                 width = "100%",
                                 multiple = TRUE,
+                                # selected = "Región Metropolitana de Santiago", 
                                 choices = NULL,
-                                options = list(maxOptions = 5, 
-                                               maxOptionsText = "Máximo 5",
-                                               noneSelectedText = "Sin selección",
-                                               width = FALSE)
+                                # choices = c("Todas las regiones", as.character(unique(casen_comunas$region))),
+                                options = list(width = FALSE)
+                    )
+             ),
+             column(12,  
+                    div(   
+                      pickerInput("comunas",
+                                  label = h4("Comunas"),
+                                  width = "100%",
+                                  multiple = TRUE,
+                                  choices = NULL,
+                                  options = list(maxOptions = 5, 
+                                                 maxOptionsText = "Máximo 5",
+                                                 noneSelectedText = "Sin selección",
+                                                 width = FALSE)
+                      ),
+                      actionButton("azar_comunas", "Elegir comunas al azar")
                     ),
-                    actionButton("azar_comunas", "Elegir comunas al azar")
-                  )
-           )
-    )
-  ),
-  
-  
-  
-  
-  
-  #grafico ----
-  fluidRow(
-    column(12,
-           hr(),
-           h3("Visualizar"),
+                    # )
+                    hr()
+                    
+             )
+           ),
+           
+           
            
     ),
-    column(12, align = "center", style = "padding: 10px;",
-           plotOutput("grafico", width = "100%", height = 600) |> 
-             withSpinner(color = color_destacado, type = 8)
-    )
-  ),
-  
-  # opciones del gráfico ----
-  fluidRow(
-    column(12,
-           hr()
-    ),
-    column(12, align = "center", 
-           div(
-             
-             style = "max-width: 400px;",
-             div(
-               style = "margin-top: 18px;",
-               sliderTextInput(
-                 inputId = "detalle",
-                 label = h4("Nivel de detalle de la curva"), width = "100%",
-                 choices = c("Bajo", "Normal", "Alto"), 
-                 selected = c("Normal")
-               )
+    
+    #grafico ----
+    column(8,
+           fluidRow(
+             column(12,
+                    # hr(),
+                    h3("Visualizar"),
+                    
              ),
-             div(
-               style = "margin-top: 24px;",
-               sliderInput(
-                 inputId = "maximo",
-                 label = h4("Límite máximo de ingresos"), width = "100%",
-                 min = 1000000, max = 10000000, step = 2000000, sep = ".",
-                 ticks = FALSE, value = 5000000
-               )
+             column(12, align = "center", style = "padding: 10px;",
+                    plotOutput("grafico", width = "100%", height = 600) |> 
+                      withSpinner(color = color_destacado, type = 8)
+             )
+           ),
+           
+           # opciones del gráfico ----
+           fluidRow(
+             column(12,
+                    hr()
+             ),
+             column(12, align = "center", 
+                    div(
+                      
+                      style = "max-width: 400px;",
+                      div(
+                        style = "margin-top: 18px;",
+                        sliderTextInput(
+                          inputId = "detalle",
+                          label = h4("Nivel de detalle de la curva"), width = "100%",
+                          choices = c("Bajo", "Normal", "Alto"), 
+                          selected = c("Normal")
+                        )
+                      ),
+                      div(
+                        style = "margin-top: 24px;",
+                        sliderInput(
+                          inputId = "maximo",
+                          label = h4("Límite máximo de ingresos"), width = "100%",
+                          min = 1000000, max = 10000000, step = 2000000, sep = ".",
+                          ticks = FALSE, value = 5000000
+                        )
+                      )
+                    )
              )
            )
-    )
-  ),
-  
-  # firma ----
-  fluidRow(
-    column(12,
-           hr(),
-           p("Diseñado y programado por",
-             tags$a("Bastián Olea Herrera.", target = "_blank", href = "https://bastian.olea.biz")),
-           p(
-             "Código de fuente de esta app y del procesamiento de los datos",
-             tags$a("disponible en GitHub.", target = "_blank", href = "https://github.com/bastianolea/casen_comparador_ingresos")
-           ),
-           div(style = "height: 40px")
-           
+    ),
+    
+    # firma ----
+    fluidRow(
+      column(12, style = "padding: 28px;",
+             hr(),
+             p("Diseñado y programado por",
+               tags$a("Bastián Olea Herrera.", target = "_blank", href = "https://bastian.olea.biz")),
+             p(
+               "Código de fuente de esta app y del procesamiento de los datos",
+               tags$a("disponible en GitHub.", target = "_blank", href = "https://github.com/bastianolea/casen_comparador_ingresos")
+             ),
+             div(style = "height: 40px")
+             
+      )
     )
   )
-  
 )
 
 
@@ -374,21 +367,31 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   #selectores ----
-
-    #filtrar comunas según regiones elegidas
+  updatePickerInput(session, "regiones",
+                    choices = c("Todas las regiones", as.character(unique(casen_comunas$region))),
+                    selected = "Región Metropolitana de Santiago",
+                    options = list(noneSelectedText = "Sin selección")
+  )
+  
+  #filtrar comunas según regiones elegidas
   lista_comunas <- reactive({
     if ("Todas las regiones" %in% input$regiones) {
-      lista_comunas <- split(unique(casen_comunas$comuna), 
+      lista_comunas <- split(unique(casen_comunas$comuna) |> sort(), 
                              unique(casen_comunas$region))
     } else {
+      # browser()
       casen_region <- casen_comunas |> 
-        filter(region == input$regiones)
-      lista_comunas <- split(unique(casen_region$comuna), 
-                             unique(casen_region$region))
+        filter(region %in% input$regiones) |> 
+        select(region, comuna) |> 
+        arrange(region, comuna) |> 
+        distinct()
+      
+      lista_comunas <- split(casen_region, ~region) |> lapply(pull, comuna)
     }  
     return(lista_comunas)
-  }) |> 
+  }) |>
     bindEvent(input$regiones)
+  
   
   #pone las comunas en el selector de comunas según la región elegida
   observeEvent(input$regiones, {
