@@ -111,6 +111,10 @@ ui <- fluidPage(
          font-size: 110%;
          }
          
+         .text {
+         font-size: 80%;
+         }
+         
          .form-control {
          color: ", color_texto, " !important;
          box-shadow: none;
@@ -219,8 +223,6 @@ ui <- fluidPage(
            
            p("Un", strong("gráfico de densidad"), "indica cómo se distribuye una población con respecto a una variable indicada en el eje horizontal. 
            En este caso, el eje horizontal corresponde a una", strong("escala de ingresos,"), "y el eje vertical es la", strong("proporción de la población.")),
-           p("La visualización indica en qué tramos de ingresos se ubican las personas de la comuna seleccionada, donde la altura de la curva representa a una mayor proporción de las personas que perciben los ingresos que indica el eje horizontal.
-           Por ejemplo, un gráfico con mucha altura en la parte inferior de la escala (izquierda) significa que la mayoría de la población percibe ingresos bajos, o un gráfico con mucha altura simultáneamente en los extremos izquierdo y derecho representaría una población con alta desigualdad y polarización de ingresos."),
            p("Los datos de este visualizador provienen de la",
              tags$a("Encuesta de caracterización socioeconómica nacional (Casen) 2022.", target = "_blank", href = "https://observatorio.ministeriodesarrollosocial.gob.cl/encuesta-casen-2022"))
            
@@ -298,7 +300,7 @@ ui <- fluidPage(
            
     ),
     
-    #grafico ----
+    #graficos ----
     column(8,
            fluidRow(
              column(12,
@@ -306,9 +308,18 @@ ui <- fluidPage(
                     h3("Visualizar"),
                     
              ),
-             column(12, align = "center", style = "padding: 10px;",
-                    plotOutput("grafico", width = "100%", height = 600) |> 
+             column(12, align = "center", style = "padding: 10px; padding-bottom: 0;",
+                    plotOutput("grafico_densidad", width = "100%", height = 600) |> 
                       withSpinner(color = color_destacado, type = 8)
+             ),
+             column(12, align = "center", style = "padding: 10px; padding-top: 0;",
+                    plotOutput("grafico_dispersion", width = "100%", height = 180) |> 
+                      withSpinner(color = color_destacado, type = 8)
+             ),
+             column(12, style = "padding-top: 16px;",
+                    p("La primera visualización es un", strong("gráfico de densidad"), "que que representa a toda la población de la comuna, donde la altura de la curva equivale a una mayor proporción de las personas que perciben los ingresos que indica el eje horizontal.
+           Por ejemplo, un gráfico con mucha altura en la parte inferior de la escala (izquierda) significa que la mayoría de la población percibe ingresos bajos."),
+           p("La segunda visualización ubica las comunas seleccionadas horizontalmente según los", strong("ingresos promedio"), "de sus habitantes (que se corresponde con el punto más denso de la visualización de arriba). En el fondo pueden verse todas las demás comunas del país (en gris), para tener un contexto cómo se comparan las comunas seleccionadas con respecto a los ingresos promedio de las demás comunas del país."), 
              )
            ),
            
@@ -418,13 +429,9 @@ server <- function(input, output, session) {
   
   
   # datos ----
+  
   datos <- reactive({
     req(length(input$comunas) > 0)
-    
-    # .variable <- switch(input$variable,
-    #                     "Ingresos individuales" = "ytotcor",
-    #                     "Ingresos de los hogares" = "ytotcorh"
-    # )
     
     #filtrar por hogares si la variable lo requiere
     if (input$variable %in% c("ytotcorh", "ypc")) {
@@ -438,6 +445,20 @@ server <- function(input, output, session) {
       #filtrar comunas
       filter(comuna %in% input$comunas) |> 
       #crear variable con los datos elegidos
+      mutate(variable = !!sym(input$variable))
+    
+    return(dato2)
+  })
+  
+  
+  datos_densidad <- reactive({
+    req(length(input$comunas) > 0)
+    req(datos())
+    
+    dato2 <- datos() |> 
+      #filtrar comunas
+      filter(comuna %in% input$comunas) |> 
+      #crear variable con los datos elegidos
       mutate(variable = !!sym(input$variable)) |> 
       #limitar máximo
       mutate(variable = ifelse(variable >= secuencia_maximo(), 
@@ -445,6 +466,32 @@ server <- function(input, output, session) {
                                variable))
     
     return(dato2)
+  })
+  
+  
+  datos_dispersion <- reactive({
+    req(length(input$comunas) > 0)
+    # req(datos())
+    
+    #filtrar por hogares si la variable lo requiere
+    if (input$variable %in% c("ytotcorh", "ypc")) {
+      dato1 <- casen_comunas |> 
+        filter(pco1 == "1. Jefatura de Hogar")
+    } else {
+      dato1 <- casen_comunas
+    }
+    
+    dato2 <- dato1 |> 
+      #crear variable con los datos elegidos
+      mutate(variable = !!sym(input$variable))
+    
+    dato3 <- dato2 |> 
+      # filter(comuna %in% .comunas) |> 
+      mutate(comuna_seleccionada = ifelse(comuna %in% input$comunas, TRUE, FALSE)) |>
+      # mutate(variable = !!sym(.variable)) |>
+      group_by(comuna, comuna_seleccionada) |> 
+      summarize(variable = mean(variable, na.rm = TRUE), .groups = "drop")
+    return(dato3)
   })
   
   
@@ -515,9 +562,9 @@ server <- function(input, output, session) {
   })
   
   
-  #gráfico ----
-  output$grafico <- renderPlot({
-    req(datos())
+  #gráfico densidad ----
+  output$grafico_densidad <- renderPlot({
+    req(datos_densidad())
     req(input$detalle != "")
     
     # browser()
@@ -539,7 +586,7 @@ server <- function(input, output, session) {
       n_comunas >= 5 ~ 0.4,
       .default = 0.7)
     
-    datos() |>
+    datos_densidad() |>
       ggplot(aes(fill = .data[[.variable_color]])) +
       # geom_density(aes(variable), alpha = 0.5, linewidth = 0, adjust = .detalle) +
       geom_density(aes(x = variable, weight = expc, y = after_stat(density)),
@@ -567,13 +614,70 @@ server <- function(input, output, session) {
             panel.border = element_blank(),
             axis.text = element_text(color = color_texto, size = 13),
             axis.text.y = element_blank(),
+            axis.text.x = element_text(margin = margin(t = 5, b = -20)),
+            legend.text = element_text(color = color_texto, size = 13, 
+                                       margin = margin(t= 4, b = 4, r = 14)),
+            # legend.background = element_blank(),
+            legend.title = element_blank(),
+            axis.title = element_blank(),
+            plot.margin = unit(c(1, 4, 1, 1), "mm")
+      )
+  })
+  
+  
+  # gráfico dispersión ----
+  output$grafico_dispersion <- renderPlot({
+    req(datos_dispersion())
+    req(input$detalle != "")
+    
+    datos_dispersion() |> 
+      ggplot(aes(x = variable, y = 1,
+                 # fill = comuna_seleccionada, color = comuna_seleccionada, 
+                 size = comuna_seleccionada, alpha = comuna_seleccionada)) +
+      geom_jitter(data = datos_dispersion() |> filter(!comuna_seleccionada), 
+                  color = color_texto, width = 0, height = 1) +
+      #línea vertical de promedio
+      # geom_vline(xintercept = mean(datos_dispersion()$variable), 
+      #            linewidth = 1.2, linetype = "solid", 
+      #            color = color_fondo) +
+      #sombra de puntos de comuna
+      geom_point(data = datos_dispersion() |> filter(comuna_seleccionada), 
+                 aes(color = comuna),
+                 size = 11, color = color_fondo, alpha = 0.6) +
+      #puntos de comuna
+      geom_point(data = datos_dispersion() |> filter(comuna_seleccionada), 
+                 aes(color = comuna)) +
+      #tamaño de puntos destacados
+      scale_size_manual(values = c(5, 10), guide = "none") +
+      #transparencia de puntos destacados
+      scale_alpha_manual(values = c("TRUE" = 0.7, "FALSE" = 0.2), guide = "none") +
+      scale_y_continuous(limits = c(0, 2)) +
+      scale_color_brewer(palette = "Dark2") +
+      scale_x_continuous(label = ~format(.x, big.mark = ".", decimal.mark = ","),
+                         expand = expansion(0.05)) +
+      #fondo
+      theme(panel.background = element_rect(fill = color_fondo, linewidth = 0),
+            plot.background = element_rect(fill = color_fondo, linewidth = 0),
+            legend.background = element_rect(fill = color_fondo, linewidth = 0),
+            legend.key = element_rect(fill = color_fondo)) +
+      #otros
+      theme(#axis.line.x = element_line(linewidth = 2, color = color_detalle, lineend = "round"),
+            axis.ticks = element_blank(),
+            panel.grid.major.x = element_line(linewidth = 0.5, color = color_detalle),
+            panel.grid.major.y = element_blank(),
+            panel.grid.minor = element_blank(),
+            panel.border = element_blank(),
+            axis.text = element_text(color = color_texto, size = 13),
+            axis.text.y = element_blank(),
             axis.text.x = element_text(margin = margin(t = 5)),
             legend.text = element_text(color = color_texto, size = 13, margin = margin(t= 4, b = 4, r = 14)),
             # legend.background = element_blank(),
             legend.title = element_blank(),
             axis.title = element_blank()
-      )
+      ) +
+      theme(legend.position = "none")
   })
+  
 }
 
 
