@@ -9,11 +9,25 @@ library(glue)
 
 options(scipen=999)
 
-color_fondo = "#222222"
-color_secundario = "#333333"
-color_detalle = "#333333"
-color_texto = "#999999"
-color_destacado = "#BBBBBB"
+# color_fondo = "#222222"
+# color_secundario = "#333333"
+# color_detalle = "#333333"
+# color_texto = "#999999"
+# color_destacado = "#BBBBBB"
+
+
+# color_fondo = "#444034" #"#44443a
+color_fondo = "#2a241d"
+color_texto = "#cdcdb7"
+color_secundario = "#9a906e"
+color_detalle = "#444034"
+color_destacado = "#cdb876"
+
+# color_fondo = "#242017"
+# color_texto = "#DAD1BD"
+color_secundario = "#B5A785"
+color_detalle = "#47402E"
+# color_destacado = "#cdb876"
 
 # diccionario de variables
 # source("variables.R")
@@ -38,7 +52,7 @@ ui <- fluidPage(
     bs_vars_input(bg = color_fondo),
     bs_vars_global(body_bg = color_fondo, 
                    text_color = color_texto, 
-                   link_color = color_destacado),
+                   link_color = color_secundario),
     bs_vars_font(size_base = "16px", #aumentar globalmente tamaño de letra  
                  # family_sans_serif = "Urbanist" #cargar fuente o tipo de letra
     ), 
@@ -46,7 +60,7 @@ ui <- fluidPage(
                   backdrop_bg = color_fondo, backdrop_opacity = "60%"),
     bs_vars_button(
       default_color = color_fondo,
-      default_bg = color_destacado,
+      default_bg = color_secundario,
       default_border = color_fondo, 
       border_radius_base = "6px"
     )
@@ -64,13 +78,12 @@ ui <- fluidPage(
     h1, h2, h3 {
     font-weight: bold;
     font-family: Aleo;
-    color: ", color_destacado, ";
     }")),
   
   tags$style(paste0("
     strong {
     font-weight: bold;
-    color: ", color_destacado, ";
+    color: ", color_secundario, ";
     }")),
   
   #labels de inputs
@@ -81,13 +94,16 @@ ui <- fluidPage(
     margin-bottom: -16px;
     margin-top: 0px;
     font-family: Aleo;
-    color: ", color_destacado, ";
     }")),
   
   #enlaces
   tags$style(paste0("
     a {
     text-decoration: underline;
+    color: ", color_secundario, ";
+    }
+    
+    a:hover {
     color: ", color_destacado, ";
     }")),
   
@@ -101,7 +117,7 @@ ui <- fluidPage(
   tags$style(paste0("
          .dropdown-menu,  .divider {
           color: black !important;
-         background: ", color_destacado, " !important;
+         background: ", color_detalle, " !important;
          }
   
          .dropdown-header {
@@ -113,6 +129,7 @@ ui <- fluidPage(
          
          .text {
          font-size: 80%;
+         color: white;
          }
          
          .form-control {
@@ -122,24 +139,41 @@ ui <- fluidPage(
          
          .no-results {
          color: black !important;
-         background: ", color_destacado, " !important;
+         background: ", color_detalle, " !important;
          }
          
          .selected {
          background-color: ", color_secundario, " !important;
-         color: ", color_destacado, " !important;
-         }")),
+         color: ", color_detalle, " !important;
+         }
+         
+         .bs-placeholder, .bs-placeholder:active, bs-placeholder:focus, .bs-placeholder:hover {
+         color: ", color_fondo, " !important;
+         }
+         
+         /*color de fondo de opción elegida*/
+         .dropdown-item.selected {
+         background-color: ", color_fondo, " !important;
+         color: black !important;
+         }
+         
+         /*color del fondo de la opción en hover*/
+         .dropdown-item:hover {
+         color: red;
+         background-color: ", color_secundario, " !important;
+         }
+         ")),
   
   #botones, botones hover
   tags$style(paste0("
     .action-button {
     opacity: 0.6; font-size: 80%; padding: 4px; padding-left: 8px; padding-right: 8px; color: black; 
-    border: 3px solid", color_destacado, ";
+    border: 3px solid", color_detalle, ";
     }
     .action-button:hover, .action-button:active, .action-button:focus {
     opacity: 1;
     color: black; 
-    border: 3px solid", color_destacado, ";
+    border: 3px solid", color_detalle, ";
     }")),
   
   #botones radio button
@@ -172,16 +206,17 @@ ui <- fluidPage(
   }
    /*pelota de slider*/
   .irs--shiny .irs-handle {
-  background-color: ", color_destacado, ";
+  background-color: ", color_detalle, ";
   box-shadow: none;
   border: 3px solid ", color_detalle, ";
   height: 30px; width: 30px;
   }
   
-  /*pelota de slider en hover o activa*/
+  /*pelota de slider hover*/
   .irs--shiny .irs-handle:hover, .irs--shiny .irs-handle:active {
   background-color: ", color_destacado, ";
   }
+  
   
   .irs--shiny .irs-single {
   background-color: ", color_detalle, ";
@@ -273,7 +308,8 @@ ui <- fluidPage(
                                 # selected = "Región Metropolitana de Santiago", 
                                 choices = NULL,
                                 # choices = c("Todas las regiones", as.character(unique(casen_comunas$region))),
-                                options = list(width = FALSE)
+                                options = list(width = FALSE,
+                                               noneSelectedText = "Sin selección")
                     )
              ),
              column(12,  
@@ -381,7 +417,7 @@ server <- function(input, output, session) {
   updatePickerInput(session, "regiones",
                     choices = c("Todas las regiones", as.character(unique(casen_comunas$region))),
                     selected = "Región Metropolitana de Santiago",
-                    options = list(noneSelectedText = "Sin selección")
+                    options = list(width = FALSE, noneSelectedText = "Sin selección")
   )
   
   #filtrar comunas según regiones elegidas
@@ -414,6 +450,7 @@ server <- function(input, output, session) {
                       selected = c("La Pintana", "Ñuñoa", "Vitacura"),
                       options = list(maxOptions = 5, 
                                      maxOptionsText = "Máximo 5",
+                                     width = FALSE,
                                      noneSelectedText = "Sin selección")
     )
   })
@@ -423,7 +460,11 @@ server <- function(input, output, session) {
     azar_comunas <- sample(unlist(lista_comunas()), 4)
     updatePickerInput(session,
                       inputId = "comunas",
-                      selected = azar_comunas
+                      selected = azar_comunas,
+                      options = list(maxOptions = 5, 
+                                     maxOptionsText = "Máximo 5",
+                                     width = FALSE,
+                                     noneSelectedText = "Sin selección")
     )
   })
   
@@ -483,7 +524,8 @@ server <- function(input, output, session) {
     
     dato2 <- dato1 |> 
       #crear variable con los datos elegidos
-      mutate(variable = !!sym(input$variable))
+      mutate(variable = !!sym(input$variable)) |> 
+      select(comuna, variable)
     
     dato3 <- dato2 |> 
       # filter(comuna %in% .comunas) |> 
@@ -635,7 +677,7 @@ server <- function(input, output, session) {
                  # fill = comuna_seleccionada, color = comuna_seleccionada, 
                  size = comuna_seleccionada, alpha = comuna_seleccionada)) +
       geom_jitter(data = datos_dispersion() |> filter(!comuna_seleccionada), 
-                  color = color_texto, width = 0, height = 1) +
+                  color = color_secundario, width = 0, height = 1) +
       #línea vertical de promedio
       # geom_vline(xintercept = mean(datos_dispersion()$variable), 
       #            linewidth = 1.2, linetype = "solid", 
@@ -662,18 +704,18 @@ server <- function(input, output, session) {
             legend.key = element_rect(fill = color_fondo)) +
       #otros
       theme(#axis.line.x = element_line(linewidth = 2, color = color_detalle, lineend = "round"),
-            axis.ticks = element_blank(),
-            panel.grid.major.x = element_line(linewidth = 0.5, color = color_detalle),
-            panel.grid.major.y = element_blank(),
-            panel.grid.minor = element_blank(),
-            panel.border = element_blank(),
-            axis.text = element_text(color = color_texto, size = 13),
-            axis.text.y = element_blank(),
-            axis.text.x = element_text(margin = margin(t = 5)),
-            legend.text = element_text(color = color_texto, size = 13, margin = margin(t= 4, b = 4, r = 14)),
-            # legend.background = element_blank(),
-            legend.title = element_blank(),
-            axis.title = element_blank()
+        axis.ticks = element_blank(),
+        panel.grid.major.x = element_line(linewidth = 0.5, color = color_detalle),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.text = element_text(color = color_texto, size = 13),
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(margin = margin(t = 5)),
+        legend.text = element_text(color = color_texto, size = 13, margin = margin(t= 4, b = 4, r = 14)),
+        # legend.background = element_blank(),
+        legend.title = element_blank(),
+        axis.title = element_blank()
       ) +
       theme(legend.position = "none")
   })
