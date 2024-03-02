@@ -614,7 +614,8 @@ server <- function(input, output, session) {
     maximo_por_variable = switch(input$variable,
                                  "y2803" = 2000000, #pensiones
                                  "ytotcorh" = 8000000, #hogares
-                                 "ytotcor" = 2000000, #personas
+                                 "ytotcor" = 3000000, #personas
+                                 "yoprcor" = 3000000, #personas
                                  "ypc" = 8000000 #per capita
     )
     updateSliderInput(session, "maximo", 

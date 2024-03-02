@@ -4,6 +4,8 @@ library(ggridges)
 library(forcats)
 library(tidyr)
 
+options(scipen = 999999)
+
 #datos
 casen_comunas <- arrow::read_feather("app/casen_ingresos.feather")
 poblacion <- arrow::read_parquet("datos/censo_proyecciones_año.parquet")
@@ -19,12 +21,12 @@ poblacion_comunas <- poblacion |>
 datos_filtrados <- casen_comunas |> 
   mutate(variable = yoprcor) |> 
   filter(!is.na(variable)) |> 
-  filter(pco1 == "1. Jefatura de Hogar") |> 
-  filter(comuna %in% poblacion_comunas$comuna[1:100]) 
+  # filter(pco1 == "1. Jefatura de Hogar") |> 
+  filter(comuna %in% poblacion_comunas$comuna[1:80]) 
 
 #limitar ingresos máximos, ordenar comunas
 datos_procesados <- datos_filtrados |>
-  mutate(variable = ifelse(variable >= 10000000, 10000000, variable)) |> 
+  mutate(variable = ifelse(variable >= 8000000, 8000000, variable)) |> 
   group_by(comuna) |> 
   mutate(promedio = mean(variable, na.rm = T)) |> 
   ungroup() |> 
@@ -41,10 +43,10 @@ grafico_exp <- datos_expandidos |>
 # grafico <- datos_procesados |>
   ggplot(aes(x = variable, y = comuna)) +
   geom_density_ridges(rel_min_height = 0, alpha = 1, 
-                      scale = 10, bandwidth = 110000,
+                      scale = 6, bandwidth = 47800*1.5,
                       size = 0.25,
                       fill = color_fondo, color = color_texto) +
-  geom_text(aes(label = paste0(comuna, "   "), x = -100000*3), 
+  geom_text(aes(label = paste0(comuna, " "), x = -100000*2.5), 
             color = color_texto, nudge_y = 0,
             size = 2, check_overlap = T, 
             hjust = 1, vjust = 0.3) + 
@@ -63,10 +65,12 @@ grafico_exp <- datos_expandidos |>
   theme(plot.margin = unit(c(6, 10, 2, 22), "mm")
   )
 
-ggsave(grafico,
-       filename = "grafico_densidad_ingresos.png", 
-       width = 8, height = 16)
+grafico_exp
 
 ggsave(grafico_exp,
        filename = "grafico_densidad_ingresos_exp.png", 
-       width = 8, height = 16)
+       width = 8, height = 12); beepr::beep()
+
+ggsave(grafico,
+       filename = "grafico_densidad_ingresos.png", 
+       width = 8, height = 12); beepr::beep()
