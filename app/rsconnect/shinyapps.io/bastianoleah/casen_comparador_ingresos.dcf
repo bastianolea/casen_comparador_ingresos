@@ -5,7 +5,7 @@ account: bastianoleah
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 10984959
-bundleId: 8183781
+bundleId: 8318934
 url: https://bastianoleah.shinyapps.io/casen_comparador_ingresos/
 version: 1
 asMultiple: FALSE
