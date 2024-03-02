@@ -1,11 +1,14 @@
 library(shiny)
 library(dplyr)
 library(ggplot2)
+library(ggridges)
 library(shinyWidgets)
 library(stringr)
 library(fresh)
 library(shinycssloaders)
 library(glue)
+library(spatstat)
+library(gt)
 
 options(scipen=999)
 
@@ -290,6 +293,7 @@ ui <- fluidPage(
                                  # choices = c("Ingresos individuales", "Ingresos de los hogares")
                                  direction = "vertical",
                                  choices = c("Ingresos individuales" = "ytotcor",
+                                             "Ingresos de la ocupación principal" = "yoprcor",
                                              "Ingresos de los hogares" = "ytotcorh",
                                              "Ingreso per cápita de hogares" = "ypc",
                                              "Jubilación o pensión por vejez" = "y2803")
@@ -297,7 +301,7 @@ ui <- fluidPage(
                            )
                     )
              ),
-             # column(12, style = "padding: 0;",
+             
              column(12, #style = "margin-top: 18px;",
                     hr(),
                     p("Elija una o más regiones para luego elegir una o varias comunas que serán incluidas en el gráfico."),
@@ -329,7 +333,34 @@ ui <- fluidPage(
                     # )
                     hr()
                     
+             ),
+             
+             # opciones del gráfico ----
+             column(12, #align = "center", 
+                    div(style = "max-width: 400px;",
+                        
+                        div(
+                          style = "margin-top: 18px;",
+                          sliderTextInput(
+                            inputId = "detalle",
+                            label = h4("Nivel de detalle de la curva"), width = "100%",
+                            choices = c("Bajo", "Normal", "Alto"), 
+                            selected = c("Normal")
+                          )
+                        ),
+                        div(
+                          style = "margin-top: 24px;",
+                          sliderInput(
+                            inputId = "maximo",
+                            label = h4("Límite máximo de ingresos"), width = "100%",
+                            min = 1000000, max = 10000000, step = 2000000, sep = ".",
+                            ticks = FALSE, value = 5000000
+                          )
+                        )
+                    ),
+                    hr()
              )
+             
            ),
            
            
@@ -339,64 +370,100 @@ ui <- fluidPage(
     #graficos ----
     column(8,
            fluidRow(
-             column(12,
-                    # hr(),
-                    h3("Visualizar"),
-                    
-             ),
+             # column(12,
+             #        # hr(),
+             #        # h3("Visualizar"),
+             #        
+             # ),
+             # column(12, h4("Gráfico de densidad de ingresos", style = "margin-bottom: 2px;")),
              column(12, align = "center", style = "padding: 10px; padding-bottom: 0;",
                     plotOutput("grafico_densidad", width = "100%", height = 600) |> 
                       withSpinner(color = color_destacado, type = 8)
              ),
+             
+             # column(12, h4("Gráfico de dispersión de ingresos", style = "margin-bottom: 2px;")),
              column(12, align = "center", style = "padding: 10px; padding-top: 0;",
                     plotOutput("grafico_dispersion", width = "100%", height = 180) |> 
                       withSpinner(color = color_destacado, type = 8)
              ),
+             
+             # column(12, h4("Gráfico de densidad de ingresos", style = "margin-bottom: 2px;")),
+             column(12, align = "center", style = "padding: 10px; padding-bottom: 0;",
+                    plotOutput("grafico_densidad_2", width = "100%", height = 600) |> 
+                      withSpinner(color = color_destacado, type = 8)
+             ),
+             
+             
+             ## tablas ----
+             column(12, style = "padding: 10px; padding-bottom: 0;",
+                    hr(),
+                    h3("Tabla de ingresos por comuna"),
+                    br(),
+                    
+                    h4("Ingresos medianos", style = "margin-bottom: 2px;"),
+                    gt_output("tabla_ingresos_medianos") |> 
+                      withSpinner(color = color_destacado, type = 8),
+                    
+                    br(),
+                    h4("Ingresos promedio", style = "margin-bottom: 2px;"),
+                    gt_output("tabla_ingresos_promedio") |> 
+                      withSpinner(color = color_destacado, type = 8)
+             ),
+             
+             ### explicación ----
              column(12, style = "padding-top: 16px;",
+                    hr(),
+                    h3("Explicación"),
+                    
                     p("La primera visualización es un", strong("gráfico de densidad"), "que que representa a toda la población de la comuna, donde la altura de la curva equivale a una mayor proporción de las personas que perciben los ingresos que indica el eje horizontal.
            Por ejemplo, un gráfico con mucha altura en la parte inferior de la escala (izquierda) significa que la mayoría de la población percibe ingresos bajos."),
            p("La segunda visualización ubica las comunas seleccionadas horizontalmente según los", strong("ingresos promedio"), "de sus habitantes (que se corresponde con el punto más denso de la visualización de arriba). En el fondo pueden verse todas las demás comunas del país (en gris), para tener un contexto cómo se comparan las comunas seleccionadas con respecto a los ingresos promedio de las demás comunas del país."), 
-             )
-           ),
-           
-           # opciones del gráfico ----
-           fluidRow(
-             column(12,
-                    hr()
+           p("La tercera visualización es otro gráfico de densidad, solamente que expresado de una forma distinta: con una comuna debajo de la otra, en vez de cada una superpuesta encima de las otras."),
              ),
-             column(12, align = "center", 
-                    div(
-                      
-                      style = "max-width: 400px;",
-                      div(
-                        style = "margin-top: 18px;",
-                        sliderTextInput(
-                          inputId = "detalle",
-                          label = h4("Nivel de detalle de la curva"), width = "100%",
-                          choices = c("Bajo", "Normal", "Alto"), 
-                          selected = c("Normal")
-                        )
-                      ),
-                      div(
-                        style = "margin-top: 24px;",
-                        sliderInput(
-                          inputId = "maximo",
-                          label = h4("Límite máximo de ingresos"), width = "100%",
-                          min = 1000000, max = 10000000, step = 2000000, sep = ".",
-                          ticks = FALSE, value = 5000000
-                        )
-                      )
-                    )
-             )
+           
            )
+           
+           # # opciones del gráfico
+           # fluidRow(
+           #   column(12,
+           #          hr()
+           #   ),
+           #   column(12, align = "center", 
+           #          div(
+           #            
+           #            style = "max-width: 400px;",
+           #            div(
+           #              style = "margin-top: 18px;",
+           #              sliderTextInput(
+           #                inputId = "detalle",
+           #                label = h4("Nivel de detalle de la curva"), width = "100%",
+           #                choices = c("Bajo", "Normal", "Alto"), 
+           #                selected = c("Normal")
+           #              )
+           #            ),
+           #            div(
+           #              style = "margin-top: 24px;",
+           #              sliderInput(
+           #                inputId = "maximo",
+           #                label = h4("Límite máximo de ingresos"), width = "100%",
+           #                min = 1000000, max = 10000000, step = 2000000, sep = ".",
+           #                ticks = FALSE, value = 5000000
+           #              )
+           #            )
+           #          )
+           #   )
+           # )
     ),
     
     # firma ----
     fluidRow(
       column(12, style = "padding: 28px;",
              hr(),
-             p("Diseñado y programado por",
-               tags$a("Bastián Olea Herrera.", target = "_blank", href = "https://bastian.olea.biz")),
+             
+             markdown("Desarrollado y programado por [Bastián Olea Herrera.](https://bastian.olea.biz)"),
+             
+             markdown("Puedes explorar mis otras [aplicaciones interactivas sobre datos sociales en mi portafolio.](https://bastianolea.github.io/shiny_apps/)"),
+             
              p(
                "Código de fuente de esta app y del procesamiento de los datos",
                tags$a("disponible en GitHub.", target = "_blank", href = "https://github.com/bastianolea/casen_comparador_ingresos")
@@ -513,6 +580,7 @@ server <- function(input, output, session) {
   datos_dispersion <- reactive({
     req(length(input$comunas) > 0)
     # req(datos())
+    # browser()
     
     #filtrar por hogares si la variable lo requiere
     if (input$variable %in% c("ytotcorh", "ypc")) {
@@ -525,14 +593,18 @@ server <- function(input, output, session) {
     dato2 <- dato1 |> 
       #crear variable con los datos elegidos
       mutate(variable = !!sym(input$variable)) |> 
-      select(comuna, variable)
+      select(comuna, expc, variable)
     
     dato3 <- dato2 |> 
       # filter(comuna %in% .comunas) |> 
       mutate(comuna_seleccionada = ifelse(comuna %in% input$comunas, TRUE, FALSE)) |>
       # mutate(variable = !!sym(.variable)) |>
       group_by(comuna, comuna_seleccionada) |> 
-      summarize(variable = mean(variable, na.rm = TRUE), .groups = "drop")
+      mutate(across(where(is.numeric), as.double)) |> 
+      # summarize(variable = mean(variable, na.rm = TRUE), .groups = "drop")
+      summarize(variable = weighted.mean(variable, w = expc, na.rm = TRUE), .groups = "drop") #calcular mediana con pesos
+    
+    # browser()
     return(dato3)
   })
   
@@ -658,7 +730,7 @@ server <- function(input, output, session) {
             axis.text.y = element_blank(),
             axis.text.x = element_text(margin = margin(t = 5, b = -20)),
             legend.text = element_text(color = color_texto, size = 13, 
-                                       margin = margin(t= 4, b = 4, r = 14)),
+                                       margin = margin(t= 4, b = 4, l = 6, r = 20)),
             # legend.background = element_blank(),
             legend.title = element_blank(),
             axis.title = element_blank(),
@@ -666,12 +738,58 @@ server <- function(input, output, session) {
       )
   })
   
+  # gráfico densidad 2 ----
+  
+  output$grafico_densidad_2 <- renderPlot({
+    req(datos_densidad())
+    req(input$detalle != "")
+    # browser()
+    
+    datos_densidad() |>
+      ggplot(aes(x = variable, y = comuna, 
+                 fill = comuna, col = comuna)) +
+      geom_density_ridges(rel_min_height = 0.001, size = 2,
+                          alpha = .3, scale = 1.9) +
+      geom_text(aes(label = paste0("  ", comuna), 
+                    x = max(seq_ingresos())), 
+                check_overlap = T, 
+                hjust = 0, vjust = 0, size = 4.5) +
+      scale_x_continuous(
+        breaks = seq_ingresos(),
+        labels = secuencia_ingresos_etiqueta(),
+        expand = expansion(0), 
+        limits = c(-1000, max(seq_ingresos()) + 1000)) +
+      scale_y_discrete(expand = expansion(c(0, 0.1))) +
+      scale_fill_brewer(palette = "Dark2", aesthetics = c("fill", "color")) +
+      theme(legend.position = "none") +
+      theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1)) +
+      coord_cartesian(clip = "off") +
+      #fondo
+      theme(panel.background = element_rect(fill = color_fondo, linewidth = 0),
+            plot.background = element_rect(fill = color_fondo, linewidth = 0),
+            legend.background = element_rect(fill = color_fondo, linewidth = 0),
+            legend.key = element_rect(fill = color_fondo)) +
+      #otros
+      theme(axis.line.x = element_line(linewidth = 2, color = color_detalle, lineend = "round"),
+            axis.ticks = element_blank(),
+            panel.grid.major.x = element_line(linewidth = 0.5, color = color_detalle),
+            panel.grid.major.y = element_line(linewidth = 1, color = color_detalle),
+            panel.grid.minor = element_blank(),
+            panel.border = element_blank(),
+            axis.text = element_text(color = color_texto, size = 13),
+            axis.text.y = element_blank(),
+            axis.text.x = element_text(margin = margin(t = 5, b = -20)),
+            legend.title = element_blank(),
+            axis.title = element_blank(),
+            plot.margin = unit(c(4, 30, 10, 0), "mm")
+      )
+  })
   
   # gráfico dispersión ----
   output$grafico_dispersion <- renderPlot({
     req(datos_dispersion())
-    req(input$detalle != "")
-    
+
+    # browser()
     datos_dispersion() |> 
       ggplot(aes(x = variable, y = 1,
                  # fill = comuna_seleccionada, color = comuna_seleccionada, 
@@ -718,6 +836,76 @@ server <- function(input, output, session) {
         axis.title = element_blank()
       ) +
       theme(legend.position = "none")
+  })
+  
+  # tablas ----
+  
+  datos_ingresos <- reactive({
+    datos <- datos() |> 
+      select(-variable) |> 
+      mutate(ytotcorh = if_else(pco1 == "1. Jefatura de Hogar", ytotcorh, NA),
+             ypc = if_else(pco1 == "1. Jefatura de Hogar", ypc, NA)) |> 
+      group_by(comuna) |> 
+      mutate(across(where(is.numeric), as.double))
+    
+    medianos <- datos |> 
+      summarize(across(c(where(is.numeric), -expc), ~weighted.median(.x, w = expc, na.rm = T)))
+    
+    promedios <- datos |> 
+      summarize(across(c(where(is.numeric), -expc), ~weighted.mean(.x, w = expc, na.rm = T)))
+    
+    return(list("medianos" = medianos, "promedios" = promedios))
+  })
+  
+  
+  output$tabla_ingresos_medianos <- render_gt({
+    # browser()
+    
+    datos_ingresos()[["medianos"]] |> 
+      arrange(desc(ytotcor)) |> 
+      gt() |> 
+      fmt_number(columns = where(is.numeric), sep_mark = ".", decimals = 0) |> 
+      cols_label(
+        ytotcorh = "Ingresos de los hogares",
+        ytotcor = "Ingresos individuales",
+        yoprcor = "Ingreso de la ocupación principal",
+        ypc = "Ingreso per cápita de hogares",
+        y2803 = "Jubilación o pensión por vejez",
+        comuna = "Comuna"
+      ) |> 
+      tab_style(locations = cells_column_labels(),
+                style = cell_text(weight = "bold")) |> 
+      tab_options(table.font.color = color_texto, table.font.color.light = color_texto, 
+                  table_body.hlines.color = color_detalle,
+                  table_body.vlines.color = color_detalle,
+                  column_labels.border.top.color = color_fondo, column_labels.border.bottom.color = color_detalle, 
+                  table_body.border.bottom.color = color_detalle,
+                  table.background.color = color_fondo)
+  })
+  
+  output$tabla_ingresos_promedio <- render_gt({
+    # browser()
+    
+    datos_ingresos()[["promedios"]] |> 
+      arrange(desc(ytotcor)) |> 
+      gt() |> 
+      fmt_number(columns = where(is.numeric), sep_mark = ".", decimals = 0) |> 
+      cols_label(
+        ytotcorh = "Ingresos de los hogares",
+        ytotcor = "Ingresos individuales",
+        yoprcor = "Ingreso de la ocupación principal",
+        ypc = "Ingreso per cápita de hogares",
+        y2803 = "Jubilación o pensión por vejez",
+        comuna = "Comuna"
+      ) |> 
+      tab_style(locations = cells_column_labels(),
+                style = cell_text(weight = "bold")) |> 
+      tab_options(table.font.color = color_texto, table.font.color.light = color_texto, 
+                  table_body.hlines.color = color_detalle,
+                  table_body.vlines.color = color_detalle,
+                  column_labels.border.top.color = color_fondo, column_labels.border.bottom.color = color_detalle, 
+                  table_body.border.bottom.color = color_detalle,
+                  table.background.color = color_fondo)
   })
   
 }
