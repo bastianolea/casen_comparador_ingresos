@@ -27,7 +27,6 @@ encontrar_decil <- function(casen_porcentajes_ingreso = NULL, ingreso = 500000) 
 }
 
 # calculo comunal ----
-
 casen_percentiles_comuna <- map(unique(casen_ingresos$comuna), ~{ 
   casen_ingresos_comuna <- casen_ingresos |> filter(comuna == .x) #filtrar datos por la comuna
   
@@ -111,6 +110,7 @@ comunas_rm_todas |>
         panel.grid.major.y = element_blank(), 
         axis.text.y = element_text(color = "black", size = 10))
 
+ggsave("graficos/grafico_porcentaje_ingresos.png", scale = 1.8)
 
 # calculo nacional ----
 
