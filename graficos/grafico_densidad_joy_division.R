@@ -64,13 +64,18 @@ number_options(decimal.mark = ",", big.mark = ".")
 casen_ingresos_3 |>
   ggplot() +
   aes(x = variable, y = comuna) +
+  geom_density_ridges()
+
+casen_ingresos_3 |>
+  ggplot() +
+  aes(x = variable, y = comuna) +
   # densidades
-  geom_density_ridges(rel_min_height = 0, scale = 4, bandwidth = 40000,
+  geom_density_ridges(rel_min_height = 0, scale = 4, bandwidth = 30000,
                       fill = color_fondo, color = color_texto) +
   # textos de medianas a la derecha
   geom_text(data = ~distinct(.x, variable, comuna, mediana),
             aes(label = label_currency()(mediana |> signif(digits = 2)), 
-                x = 2500000), nudge_x = 155000,
+                x = 2500000), nudge_x = 120000,
             color = color_texto, 
             size = 2.5, check_overlap = T,
             hjust = 0, vjust = 0.3) +
