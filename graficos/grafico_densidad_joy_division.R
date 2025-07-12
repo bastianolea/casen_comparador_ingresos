@@ -11,7 +11,8 @@ options(scipen = 9999)
 
 # datos ----
 # cargar encuesta casen en formato parquet (más rápido de cargar)
-casen2022_2 <- arrow::read_parquet("datos/originales/casen2022.parquet")
+# casen2022_2 <- arrow::read_parquet("datos/originales/casen2022.parquet")
+casen2022_2 <- arrow::read_parquet("datos/casen_ingresos.parquet")
 poblacion <- arrow::read_parquet("datos/censo_proyecciones_año.parquet")
 
 color_fondo = "black"; color_texto = "white"

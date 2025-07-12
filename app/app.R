@@ -37,7 +37,7 @@ color_detalle = "#47402E"
 
 #cargar datos ----
 # setwd("app/")
-casen_comunas <- arrow::read_feather("casen_ingresos.feather")
+casen_comunas <- arrow::read_parquet("casen_ingresos.parquet")
 variables_numericas <- casen_comunas |> select(where(is.numeric)) |> names()
 
 #—----

@@ -24,9 +24,14 @@ variables_casen <- c(
   "y2803")
 
 # filtrar variables y aplicar factor de expansión ----
-casen2022_comunas <- casen2022_2 |> 
+casen2022_comunas_a <- casen2022_2 |> 
   select(any_of(variables_casen)) |> 
   mutate(across(where(is.factor), as.character))
 
-arrow::write_feather(casen2022_comunas, "app/casen_ingresos.feather")
-arrow::write_feather(casen2022_comunas, "datos/casen_ingresos.feather")
+casen2022_comunas_b <- casen2022_2 |> 
+  select(any_of(variables_casen),
+         expc, estrato, id_persona) |> 
+  mutate(across(where(is.factor), as.character))
+
+arrow::write_parquet(casen2022_comunas_a, "app/casen_ingresos.parquet")
+arrow::write_parquet(casen2022_comunas_b, "datos/casen_ingresos.parquet")
