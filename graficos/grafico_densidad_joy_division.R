@@ -1,76 +1,101 @@
+library(arrow)
 library(dplyr)
 library(ggplot2)
+library(scales)
 library(ggridges)
 library(forcats)
 library(tidyr)
+library(ggview)
 
-options(scipen = 999999)
+options(scipen = 9999)
 
-#datos
-casen_comunas <- arrow::read_feather("app/casen_ingresos.feather")
+# datos ----
+# cargar encuesta casen en formato parquet (más rápido de cargar)
+casen2022_2 <- arrow::read_parquet("datos/originales/casen2022.parquet")
 poblacion <- arrow::read_parquet("datos/censo_proyecciones_año.parquet")
 
 color_fondo = "black"; color_texto = "white"
 
-#obtener población
+# obtener población comunal
 poblacion_comunas <- poblacion |> 
   filter(año == 2024) |> 
   arrange(desc(población))
 
-#filtrar variable de ingresos y comunas
-datos_filtrados <- casen_comunas |> 
-  mutate(variable = yoprcor) |> 
-  filter(!is.na(variable)) |> 
-  # filter(pco1 == "1. Jefatura de Hogar") |> 
-  filter(comuna %in% poblacion_comunas$comuna[1:80]) 
+# procesar encuesta de diseño complejo
+library(srvyr)
 
-#limitar ingresos máximos, ordenar comunas
-datos_procesados <- datos_filtrados |>
-  mutate(variable = ifelse(variable >= 8000000, 8000000, variable)) |> 
+casen_svy <- casen2022_2 |> 
+  # filtrar 80 comunas con más población
+  filter(comuna %in% poblacion_comunas$comuna[1:80]) |> 
+  # crear diseño de encuestas complejas
+  as_survey(weights = expc, 
+            strata = estrato, 
+            ids = id_persona, 
+            nest = TRUE)
+
+# calcular cantidades usando factor de expansión
+casen_ingresos <- casen_svy |> 
+  group_by(comuna, yoprcor) |> 
+  summarize(n = survey_total(),
+            p = survey_mean())
+
+# limpiar datos y limitar ingresos
+casen_ingresos_2 <- casen_ingresos |> 
+  rename(variable = yoprcor) |> 
+  filter(!is.na(variable)) |> 
+  # calcular mediana de ingresos
   group_by(comuna) |> 
-  mutate(promedio = mean(variable, na.rm = T)) |> 
+  mutate(mediana = median(variable, na.rm = T)) |>
+  # limitar ingresos máximos, ordenar comunas
+  filter(variable < 2500000) |> 
   ungroup() |> 
   mutate(comuna = as.factor(comuna),
-         comuna = fct_reorder(comuna, promedio))
+         comuna = fct_reorder(comuna, mediana))
 
-#aplicar factor de expansión
-datos_expandidos <- datos_procesados |> 
-  select(comuna, expc, variable, promedio) |> 
-  uncount(expc)
+# expandir observaciones
+casen_ingresos_3 <- casen_ingresos_2 |> 
+  mutate(n = as.integer(n)) |> 
+  uncount(weights = n)
 
-#graficar
-grafico_exp <- datos_expandidos |>
-# grafico <- datos_procesados |>
-  ggplot(aes(x = variable, y = comuna)) +
-  geom_density_ridges(rel_min_height = 0, alpha = 1, 
-                      scale = 6, bandwidth = 47800*1.5,
-                      size = 0.25,
+# graficar ----
+number_options(decimal.mark = ",", big.mark = ".")
+
+casen_ingresos_3 |>
+  ggplot() +
+  aes(x = variable, y = comuna) +
+  # densidades
+  geom_density_ridges(rel_min_height = 0, scale = 4, bandwidth = 40000,
                       fill = color_fondo, color = color_texto) +
-  geom_text(aes(label = paste0(comuna, " "), x = -100000*2.5), 
-            color = color_texto, nudge_y = 0,
-            size = 2, check_overlap = T, 
-            hjust = 1, vjust = 0.3) + 
-  scale_x_continuous(expand = expansion(0), 
-                     breaks = c(.5, 2, 4, 6, 8, 10)*1000000,
-                     labels = ~format(.x, big.mark = ".", trim = T)) +
+  # textos de medianas a la derecha
+  geom_text(data = ~distinct(.x, variable, comuna, mediana),
+            aes(label = label_currency()(mediana |> signif(digits = 2)), 
+                x = 2500000), nudge_x = 155000,
+            color = color_texto, 
+            size = 2.5, check_overlap = T,
+            hjust = 0, vjust = 0.3) +
+  # expandir escala horizontal
+  scale_x_continuous(expand = expansion(c(0, 0.09)), 
+                     breaks = c(0, .5, 1, 1.5, 2, 2.5)*1000000,
+                     labels = label_currency()) +
+  # no cortar geometrías fuera del plano de coordenadas
   coord_cartesian(clip = "off") +
-  theme_void() +
-  theme(legend.position = "none",
-        axis.ticks.x = element_line(color = color_texto),
-        axis.text.x = element_text(size = 6, color = color_texto, 
-                                   angle = -90, vjust = 0.5, hjust = 0, 
-                                   margin = margin(t=4)),
-        panel.background = element_rect(fill = color_fondo, linewidth = 0),
-        plot.background = element_rect(fill = color_fondo, linewidth = 0)) +
-  theme(plot.margin = unit(c(6, 10, 2, 22), "mm")
-  )
+  # tema
+  theme_void(base_family = "Helvetica") +
+  # texto eje horizontal
+  theme(axis.text.x = element_text(size = 6, color = color_texto, 
+                                   margin = margin(t = 4))) +
+  # texto eje vertical
+  theme(axis.text.y = element_text(size = 7, color = color_texto, 
+                                   hjust = 1, vjust = 0.3, margin = margin(r = 7))) +
+  # fondo
+  theme(panel.background = element_rect(fill = color_fondo, linewidth = 0),
+        plot.background = element_rect(fill = color_fondo, linewidth = 0),
+        plot.margin = unit(c(5, 4, 5, 4), "mm")) +
+  theme(plot.title = element_text(size = 10, hjust = 0.4, colour = color_texto, margin = margin(b = 3)),
+        plot.subtitle = element_text(size = 8, hjust = 0.4, colour = color_texto, margin = margin(b = 6))) +
+  # textos
+  labs(title = "Distribución de ingresos por comuna: Chile" |> toupper(),
+       subtitle = "Ingreso de la ocupación principal, CASEN 2022") +
+  canvas(8, 12)
 
-grafico_exp
-
-ggsave(grafico_exp,
-       filename = "grafico_densidad_ingresos_exp.png", 
-       width = 8, height = 12); beepr::beep()
-
-ggsave(grafico,
-       filename = "grafico_densidad_ingresos.png", 
-       width = 8, height = 12); beepr::beep()
+save_ggplot(plot = last_plot(), file = "graficos/grafico_densidad_joy_division.jpg")

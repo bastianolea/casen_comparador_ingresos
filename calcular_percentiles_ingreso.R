@@ -1,5 +1,7 @@
 #script para calcular % de población comunal o nacional que gana más o menos que x
 
+# install.packages("spatstat")
+
 library(dplyr)
 library(stringr)
 library(glue)
@@ -31,7 +33,8 @@ casen_percentiles_comuna <- map(unique(casen_ingresos$comuna), ~{
   casen_ingresos_comuna <- casen_ingresos |> filter(comuna == .x) #filtrar datos por la comuna
   
   #obtener cortes de los percentiles: vector de 100 numeros que cortan la distribución de ingresos
-  casen_porcentajes_ingreso <- weighted.quantile(casen_ingresos_comuna$ytrabajocor, w = casen_ingresos_comuna$expr, 
+  casen_porcentajes_ingreso <- weighted.quantile(casen_ingresos_comuna$ytrabajocor, 
+                                                 w = casen_ingresos_comuna$expr, 
                                                  probs = seq(.01, .99, by = .01)) |>
     as.integer()
   

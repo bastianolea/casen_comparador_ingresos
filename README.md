@@ -12,6 +12,11 @@ Los datos provienen de la [Encuesta de caracterización socioeconómica nacional
 
 ![Comparador de ingresos Casen](www/comparador_ingresos_casen.jpg "Comparador de ingresos Casen")
 
+## Procesamiento 
+1. casen2022_importar.R
+2. casen2022_procesar.R
+3. casen2022_preparar.R
+
 ----
 
 Diseñado y programado en R por Bastián Olea Herrera. Magíster en Sociología, data scientist.
